@@ -1,0 +1,88 @@
+# This workflow builds a Windows .exe from your Python script
+# and creates a new "latest" release with the .exe file.
+
+name: Build and Release EXE
+
+on:
+  # Triggers the workflow on any push to the 'main' branch
+  push:
+    branches:
+      - main
+
+jobs:
+  build-release:
+    name: Build and Release
+    # We must run on Windows to build a .exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Use a stable Python version
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install all packages from your requirements.txt file
+          pip install -r requirements.txt
+
+      - name: Set up build variables
+        id: vars
+        shell: pwsh
+        run: |
+          # Get the first 7 characters of the commit hash
+          $short_hash = $env:GITHUB_SHA.Substring(0, 7)
+          # Create a unique tag name, e.g., "build-20251027-1430-a1b2c3d"
+          $tag_name = "build-$(Get-Date -Format 'yyyyMMdd-HHmm')-$short_hash"
+          # Set the desired name for your final .exe file
+          $exe_name = "DatabaseExporter.exe"
+          
+          # Save these as output variables for later steps
+          echo "TAG_NAME=$tag_name" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          echo "EXE_NAME=$exe_name" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Build EXE with PyInstaller
+        env:
+          # IMPORTANT: Change this to the name of your main Python script
+          SCRIPT_NAME: app.py
+        run: |
+          # --onefile: Bundle everything into a single .exe
+          # --windowed: No console window, for GUI apps
+          # --name: The output file name from the step above
+          # --icon: See note below
+          pyinstaller --onefile --windowed --name "${{ steps.vars.outputs.EXE_NAME }}" --icon=NONE "${{ env.SCRIPT_NAME }}"
+          
+          # --- NOTE ON ICON ---
+          # You provided an SVG, but PyInstaller needs a .ico file.
+          # 1. Convert your SVG to a .ico file (e.g., using an online converter).
+          # 2. Add the .ico file to your repo (e.g., "assets/logo.ico").
+          # 3. Change '--icon=NONE' to '--icon="assets/logo.ico"'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          # This is the .exe file PyInstaller built
+          files: dist/${{ steps.vars.outputs.EXE_NAME }}
+          
+          # This creates a new, unique tag for this build
+          tag_name: ${{ steps.vars.outputs.TAG_NAME }}
+          
+          # This is the title of the release page
+          name: "Database Exporter (Build ${{ steps.vars.outputs.TAG_NAME }})"
+          
+          body: "Automated build of the Database Exporter application."
+          
+          # This marks the release as a "pre-release"
+          prerelease: true
+          
+          # This makes this new release the "latest" one
+          latest: true
+          
+        env:
+          # This token is automatically provided by GitHub Actions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
