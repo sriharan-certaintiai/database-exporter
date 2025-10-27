@@ -49,7 +49,7 @@ jobs:
       - name: Build EXE with PyInstaller
         env:
           # IMPORTANT: Change this to the name of your main Python script
-          SCRIPT_NAME: app.py
+          SCRIPT_NAME: main.py
         run: |
           # --onefile: Bundle everything into a single .exe
           # --windowed: No console window, for GUI apps
