@@ -15,6 +15,10 @@ jobs:
     # We must run on Windows to build a .exe
     runs-on: windows-latest
 
+    # --- FIX 1: Add permissions block to fix 403 error ---
+    permissions:
+      contents: write
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -55,7 +59,7 @@ jobs:
           # --windowed: No console window, for GUI apps
           # --name: The output file name from the step above
           # --icon: See note below
-          pyinstaller --onefile --windowed --name "${{ steps.vars.outputs.EXE_NAME }}" --icon=NONE "${{ env.SCRIPT_NAME }}"
+          pyinstaller --onefile --noconsole --windowed --name "${{ steps.vars.outputs.EXE_NAME }}" --icon=NONE "${{ env.SCRIPT_NAME }}"
           
           # --- NOTE ON ICON ---
           # You provided an SVG, but PyInstaller needs a .ico file.
@@ -68,21 +72,20 @@ jobs:
         with:
           # This is the .exe file PyInstaller built
           files: dist/${{ steps.vars.outputs.EXE_NAME }}
-          
+
           # This creates a new, unique tag for this build
           tag_name: ${{ steps.vars.outputs.TAG_NAME }}
-          
+
           # This is the title of the release page
           name: "Database Exporter (Build ${{ steps.vars.outputs.TAG_NAME }})"
-          
+
           body: "Automated build of the Database Exporter application."
-          
-          # This marks the release as a "pre-release"
-          prerelease: true
-          
-          # This makes this new release the "latest" one
-          latest: true
-          
+
+          # --- FIX 2: Set prerelease to false to make it the "latest" ---
+          prerelease: false
+
+          # --- FIX 3: Remove invalid 'latest: true' input ---
+
         env:
           # This token is automatically provided by GitHub Actions
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
